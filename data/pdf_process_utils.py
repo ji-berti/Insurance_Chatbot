@@ -1,6 +1,6 @@
 import os
-from langchain_community.document_loaders import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.document_loaders import PyPDFLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 def load_split_pdfs(pdf_dir, chunk_size, chunk_overlap):
     """
@@ -15,7 +15,7 @@ def load_split_pdfs(pdf_dir, chunk_size, chunk_overlap):
         list: List of document chunks.
     """
     # Load PDFs from the specified directory
-    loader = PyPDFDirectoryLoader(path= pdf_dir)
+    loader = PyPDFLoader(pdf_dir)
     if not os.path.exists(pdf_dir):
         raise FileNotFoundError(f"The directory {pdf_dir} does not exist.")
     try:
