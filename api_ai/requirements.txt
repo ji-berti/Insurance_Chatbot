@@ -6,3 +6,6 @@ sentence-transformers
 huggingface-hub 
 langchain-google-genai
 python-dotenv
+fastapi
+uvicorn
+duckduckgo-search

@@ -1,8 +1,8 @@
 import os
 
-PDF_DIR_POLIZAS = './polizas'
+PDF_DIR_POLIZAS = './generative_resp/polizas'
 
-VECTOR_STORE_OUTPUT = './vector_store'
+VECTOR_STORE_OUTPUT = './generative_resp/vector_store'
 if not os.path.exists(VECTOR_STORE_OUTPUT):
     os.makedirs(VECTOR_STORE_OUTPUT)
 
