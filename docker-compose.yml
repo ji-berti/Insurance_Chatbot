@@ -1,8 +1,6 @@
 services:
   ui:
     build: ./ui
-    volumes:
-      - shared-data:/app/user_uploads
     ports:
       - "8501:8501"
     networks:
@@ -10,17 +8,12 @@ services:
 
   api:
     build: ./api_ai
-    volumes:
-      - shared-data:/app/user_uploads
     ports:
       - "3000:3000"
     networks:
       - ins-chat-network
     depends_on:
       - ui
-
-volumes:
-  shared-data:
 
 networks:
   ins-chat-network:

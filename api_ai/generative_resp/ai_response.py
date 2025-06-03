@@ -3,7 +3,7 @@ import shutil
 
 from generative_resp import config_vectordb as config
 from generative_resp import config_model as config_model
-from generative_resp.pdf_process_utils import load_split_pdfs
+from generative_resp.pdf_process_utils import load_split_pdfs, load_single_pdf
 from generative_resp.services import get_embeddings, create_vector_store, load_vector_store
 
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -13,39 +13,55 @@ from langchain.tools import DuckDuckGoSearchRun
 from langchain.prompts import PromptTemplate
 from langchain import hub
 
-
-# Create o load the vector store
+# Create or load the vector store index
 def create_index(force_recreate=False):
-    # If the recreate de VS
+    # Recreate the vector store if specified
     if force_recreate and os.path.exists(config.VECTOR_STORE_PATH):
         shutil.rmtree(config.VECTOR_STORE_PATH)
 
     # If the vector store does not exist, create it
     if not os.path.exists(config.VECTOR_STORE_PATH):
         print("Creating vector store index...")
-        chunks = load_split_pdfs( # Obtain the chunks from the PDF files
+        chunks = load_split_pdfs( # Load the chunks
             pdf_dir=config.PDF_DIR_POLIZAS,
             chunk_size=config.CHUNK_SIZE,
             chunk_overlap=config.CHUNK_OVERLAP
         )
-
-        # Get the embeddings and create the vector store
-        embeddings = get_embeddings(model_name=config.EMBEDDING_MODEL)
-        vector_store = create_vector_store(
+        embeddings = get_embeddings(model_name=config.EMBEDDING_MODEL) # Get the embeddings
+        vector_store = create_vector_store( # Create the vector store
             chunks=chunks,
             embeddings=embeddings,
             vector_store_path=config.VECTOR_STORE_PATH
         )
         return vector_store
+    
     # If the vector store already exists, load it
     else:
         print("Loading existing vector store index...")
         embeddings = get_embeddings(model_name=config.EMBEDDING_MODEL)
         return load_vector_store(vector_store_path=config.VECTOR_STORE_PATH, embeddings=embeddings)
 
+# Add a new PDF file to the existing vector store
+def update_vector_store_with_new_file(file_path: str, vector_store):
+    if not file_path.endswith(".pdf") or not os.path.exists(file_path):
+        raise ValueError(f"{file_path} is not a valid PDF file.")
+
+    print(f"Processing new file to add to the vector store: {file_path}")
+    chunks = load_single_pdf( # Load the chunks from the new PDF file
+        pdf_path=file_path,
+        chunk_size=config.CHUNK_SIZE,
+        chunk_overlap=config.CHUNK_OVERLAP
+    )
+
+    if chunks:
+        vector_store.add_documents(chunks)
+        print("File added successfully to the vector store.")
+    else:
+        print("No documents were added to the vector store.")
+
 # Generate the agent with the vector store and tools
 def generate_agent(vector_store):
-    # Call the Google Gemini LLM
+    # Create the Gemini LLM instance
     llm = ChatGoogleGenerativeAI(
         model=config_model.GEMINI_MODEL,
         google_api_key=config_model.GEMINI_API_KEY,
@@ -53,10 +69,10 @@ def generate_agent(vector_store):
         max_output_tokens=config_model.MAX__OUT_TOKENS
     )
 
-    # Memory history for the agent
+    # Create the memory cache for the conversation
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
-    # Avialable tools 
+    # Retriever tool to search on the vector store
     retriever_tool = Tool(
         name="VectorDBTool",
         func=lambda q: "\n".join(
@@ -68,6 +84,7 @@ def generate_agent(vector_store):
         )
     )
 
+    # Search tool to search on the web if the vector store does not contain the answer
     search_tool = Tool(
         name="WebSearch",
         func=DuckDuckGoSearchRun().run,
@@ -79,12 +96,10 @@ def generate_agent(vector_store):
 
     tools = [retriever_tool, search_tool]
 
-    # Create the base prompt for the agent
-    # Option 1: Pull the prompt from the langchain hub
+    # Load the prompt template from the hub or create a default one
     try:
         prompt = hub.pull("hwchase17/react")
     except:
-        # Option 2: Create a custom promt
         prompt = PromptTemplate(
             template="""Answer the following questions as best you can. You have access to the following tools:
 
@@ -112,10 +127,9 @@ def generate_agent(vector_store):
             }
         )
 
-    # Crear el agente con el prompt
+    # Create the agent using the LLM, tools, and prompt
     agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
 
-    # Ejecutar agente
     agent_executor = AgentExecutor(
         agent=agent,
         tools=tools,
@@ -126,8 +140,7 @@ def generate_agent(vector_store):
 
     return agent_executor
 
-
-
+# Retrieve a response for a given query using the agent
 def send_response(query: str):
     vector_store = create_index(force_recreate=False)
     agent = generate_agent(vector_store)

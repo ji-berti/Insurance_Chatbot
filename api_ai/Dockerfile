@@ -1,12 +1,12 @@
 FROM python:3.10-slim
 
-# Evita prompts de instalación y mejora tiempos de build
+# Avoid interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive \
     PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Instala herramientas necesarias para compilación de dependencias
+# Install necessary tools for dependency compilation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -21,7 +21,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
-# Añade timeout y salida detallada
+# Add timeout and verbose output
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt --timeout 100 --no-cache-dir --verbose
 
