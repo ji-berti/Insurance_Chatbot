@@ -1,5 +1,5 @@
 import os
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 def get_embeddings(model_name, device='cpu'):

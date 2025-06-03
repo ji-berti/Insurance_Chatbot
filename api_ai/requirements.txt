@@ -1,0 +1,12 @@
+langchain-community
+pypdf
+faiss-cpu 
+transformers 
+sentence-transformers 
+huggingface-hub 
+langchain-google-genai
+python-dotenv
+fastapi
+uvicorn
+duckduckgo-search
+python-multipart

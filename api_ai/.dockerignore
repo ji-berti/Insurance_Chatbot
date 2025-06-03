@@ -1,0 +1,4 @@
+.env_base
+__pycache__
+.devcontainer
+temp_uploads
