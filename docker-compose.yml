@@ -4,17 +4,17 @@ services:
     ports:
       - "8501:8501"
     networks:
-      - ins-chat-network
+      - ins_chat_network
 
   api:
     build: ./api_ai
     ports:
       - "3000:3000"
     networks:
-      - ins-chat-network
+      - ins_chat_network
     depends_on:
       - ui
 
 networks:
-  ins-chat-network:
+  ins_chat_network:
     driver: bridge
