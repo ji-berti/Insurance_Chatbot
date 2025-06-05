@@ -1,5 +1,6 @@
 import os
 import shutil
+from typing import List, Dict, Any
 
 from generative_resp import config_vectordb as config
 from generative_resp import config_model as config_model
@@ -59,8 +60,20 @@ def update_vector_store_with_new_file(file_path: str, vector_store):
     else:
         print("No documents were added to the vector store.")
 
-# Generate the agent with the vector store and tools
-def generate_agent(vector_store):
+# Generar respuesta considerando el historial pasado como parámetro
+def send_response(query: str, conversation_history: List[Dict[str, str]] = None):
+    """
+    Generar respuesta usando el historial de conversación pasado como parámetro
+    
+    Args:
+        query: La pregunta actual del usuario
+        conversation_history: Lista de mensajes previos en formato:
+            [{"role": "human", "content": "pregunta"}, {"role": "ai", "content": "respuesta"}, ...]
+    """
+    
+    # Crear o cargar el vector store
+    vector_store = create_index(force_recreate=False)
+    
     # Create the Gemini LLM instance
     llm = ChatGoogleGenerativeAI(
         model=config_model.GEMINI_MODEL,
@@ -69,8 +82,19 @@ def generate_agent(vector_store):
         max_output_tokens=config_model.MAX__OUT_TOKENS
     )
 
-    # Create the memory cache for the conversation
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    # Crear memoria temporal solo para la sesión en curso
+    memory = ConversationBufferMemory(
+        memory_key="chat_history", 
+        return_messages=True
+    )
+    
+    # Si hay historial previo, agregarlo a la memoria temporal
+    if conversation_history:
+        for message in conversation_history:
+            if message["role"] == "human":
+                memory.chat_memory.add_user_message(message["content"])
+            elif message["role"] == "ai":
+                memory.chat_memory.add_ai_message(message["content"])
 
     # Retriever tool to search on the vector store
     retriever_tool = Tool(
@@ -95,37 +119,51 @@ def generate_agent(vector_store):
     )
 
     tools = [retriever_tool, search_tool]
+    
+    prompt = PromptTemplate(
+        template=
+        """
+        Assistant is a helpful and conversational AI designed to answer questions about insurance policies.
+        It has access to a database of insurance policies and can also search the web for general information.
+        Strive to be polite and informative. If you don't know the answer from the provided tools, say so.
+        
+        You should consider the conversation history to provide contextual and coherent responses.
+        If the user refers to something mentioned earlier in the conversation, use that context.
+        Pay attention to pronouns like "it", "that", "this" that might refer to previous topics.
 
-    # Load the prompt template from the hub or create a default one
-    try:
-        prompt = hub.pull("hwchase17/react")
-    except:
-        prompt = PromptTemplate(
-            template="""Answer the following questions as best you can. You have access to the following tools:
+        TOOLS:
+        ------
+        You have access to the following tools:
+        {tools}
 
-                {tools}
+        To use a tool, you MUST use the following format:
 
-                Use the following format:
+        Thought: Do I need to use a tool? Yes
+        Action: The action to take, should be one of [{tool_names}]
+        Action Input: The input to the action
+        Observation: The result of the action
 
-                Question: the input question you must answer
-                Thought: you should always think about what to do
-                Action: the action to take, should be one of [{tool_names}]
-                Action Input: the input to the action
-                Observation: the result of the action
-                ... (this Thought/Action/Action Input/Observation can repeat N times)
-                Thought: I now know the final answer
-                Final Answer: the final answer to the original input question
+        (This Thought/Action/Action Input/Observation can repeat N times if you need to use multiple tools or multiple steps)
 
-                Begin!
+        When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
 
-                Question: {input}
-                Thought:{agent_scratchpad}""",
-            input_variables=["input", "agent_scratchpad"],
-            partial_variables={
-                "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in tools]),
-                "tool_names": ", ".join([tool.name for tool in tools])
-            }
-        )
+        Thought: Do I need to use a tool? No
+        Final Answer: [Your final response to the human here. This should be a complete answer to the original question, considering the conversation history.]
+
+        Begin!
+
+        Previous conversation history:
+        {chat_history}
+
+        New input from Human: {input}
+        Thought:{agent_scratchpad}
+        """,
+        input_variables=["input", "agent_scratchpad", "chat_history"],
+        partial_variables={
+            "tools": "\n".join([f"{tool.name}: {tool.description}" for tool in tools]),
+            "tool_names": ", ".join([tool.name for tool in tools])
+        }
+    )
 
     # Create the agent using the LLM, tools, and prompt
     agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
@@ -133,16 +171,11 @@ def generate_agent(vector_store):
     agent_executor = AgentExecutor(
         agent=agent,
         tools=tools,
-        memory=memory,
+        memory=memory,  # Memoria temporal para la sesión
         verbose=True,
         handle_parsing_errors=True
     )
 
-    return agent_executor
-
-# Retrieve a response for a given query using the agent
-def send_response(query: str):
-    vector_store = create_index(force_recreate=False)
-    agent = generate_agent(vector_store)
-    result = agent.invoke({"input": query})
+    # Ejecutar la consulta
+    result = agent_executor.invoke({"input": query})
     return result["output"]
