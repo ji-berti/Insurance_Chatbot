@@ -1,12 +1,25 @@
+# For Agent and LLM
 langchain-community
-pypdf
-faiss-cpu 
+langchain-google-genai
+duckduckgo-search
+
+# For document processing and vectorization
+huggingface-hub 
 transformers 
 sentence-transformers 
-huggingface-hub 
-langchain-google-genai
-python-dotenv
+pypdf
+
+# For vector database
+faiss-cpu 
+
+# For API and web server
 fastapi
 uvicorn
-duckduckgo-search
+
+# For environment management
+python-dotenv
 python-multipart
+
+
+# Por si se usa Gemma2
+langchain-huggingface

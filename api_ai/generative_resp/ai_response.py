@@ -1,6 +1,6 @@
 import os
 import shutil
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from generative_resp import config_vectordb as config
 from generative_resp import config_model as config_model
@@ -13,6 +13,12 @@ from langchain.memory import ConversationBufferMemory
 from langchain.tools import DuckDuckGoSearchRun
 from langchain.prompts import PromptTemplate
 from langchain import hub
+
+# --- DEPENDECIES FOR LOCAL GEMMA MODELS ---
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
+from langchain_huggingface import HuggingFacePipeline
+# ---------------------------------------------
 
 # Create or load the vector store index
 def create_index(force_recreate=False):
@@ -79,7 +85,7 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
         model=config_model.GEMINI_MODEL,
         google_api_key=config_model.GEMINI_API_KEY,
         temperature=config_model.TEMPERATURE,
-        max_output_tokens=config_model.MAX__OUT_TOKENS
+        max_output_tokens=config_model.MAX_OUT_TOKENS
     )
 
     # Crear memoria temporal solo para la sesión en curso
@@ -100,7 +106,7 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
     retriever_tool = Tool(
         name="VectorDBTool",
         func=lambda q: "\n".join(
-            [doc.page_content for doc in vector_store.as_retriever().get_relevant_documents(q)]
+            [doc.page_content for doc in vector_store.as_retriever(search_kwargs={'k': config_model.TOP_K}).get_relevant_documents(q)]
         ),
         description=(
             "Usa esta herramienta para buscar información en la base de datos de pólizas de seguros. "
@@ -120,6 +126,7 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
 
     tools = [retriever_tool, search_tool]
     
+    # BASE PROMPT
     prompt = PromptTemplate(
         template=
         """

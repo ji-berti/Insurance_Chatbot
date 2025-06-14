@@ -4,8 +4,7 @@
         "context": ".."
     },
     "runArgs": [
-    "--network=ins_chat_network",
-    "-p", "8501:8501"
+    "--network=ins_chat_network"
   ],
     "customizations": {
         "vscode": {
