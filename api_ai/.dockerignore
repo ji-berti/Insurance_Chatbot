@@ -3,3 +3,4 @@ __pycache__
 .devcontainer
 temp_uploads
 model_evaluation
+tests
