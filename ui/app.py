@@ -6,7 +6,7 @@ st.set_page_config(page_title="Asistente de Seguros", layout="centered")
 # CHANGE THE URL FOR PRODUCTION
 API_BASE_URL = "http://thirsty_ride:3000"
 
-# Comprobar estado del backend
+# Check backend API status
 def check_api_status():
     try:
         res = requests.get(f"{API_BASE_URL}/health", timeout=3)
@@ -14,28 +14,27 @@ def check_api_status():
     except:
         return False
 
-# Estado del sistema (conectado o no)
+# System status (online or not)
 is_online = check_api_status()
 
-# Inicializar historial si no existe
+# Initialize history if it doesn't exist
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "¡Hola! Soy tu asistente de seguros. ¿En qué puedo ayudarte hoy?"}
     ]
 
-# Sidebar: estado, subir PDF, reset
+# Sidebar: status, upload PDF, reset
 with st.sidebar:
     st.markdown("## Sistema")
     st.markdown(
         f"**Estado del sistema:** {'Conectado 🟢' if is_online else 'Desconectado 🔴'}"
     )
 
-    # st.markdown("---")
     st.markdown("## 📄 Subir archivo PDF")
 
     uploaded_file = st.file_uploader("Selecciona un PDF", type="pdf")
 
-    # Subir solo si aún no se ha subido
+    # Upload only if not uploaded yet
     if uploaded_file and "pdf_uploaded" not in st.session_state:
         with st.spinner("Subiendo archivo..."):
             response = requests.post(
@@ -55,7 +54,7 @@ with st.sidebar:
         ]
         st.rerun()
 
-# Título e info del historial
+# Title and about session history
 st.title("Asistente de Seguros")
 
 st.markdown(
@@ -68,18 +67,18 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Mostrar historial del chat
+# Show chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# Campo de entrada del usuario
+# User input field
 if prompt := st.chat_input("Escribe tu mensaje..."):
-    # Mostrar entrada del usuario
+    # Show user input
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Procesar respuesta
+    # Process response
     with st.chat_message("assistant"):
         with st.spinner("Pensando..."):
             try:

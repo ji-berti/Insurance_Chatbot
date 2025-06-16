@@ -14,12 +14,6 @@ from langchain.tools import DuckDuckGoSearchRun
 from langchain.prompts import PromptTemplate
 from langchain import hub
 
-# --- DEPENDECIES FOR LOCAL GEMMA MODELS ---
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, pipeline
-from langchain_huggingface import HuggingFacePipeline
-# ---------------------------------------------
-
 # Create or load the vector store index
 def create_index(force_recreate=False):
     # Recreate the vector store if specified
@@ -69,15 +63,15 @@ def update_vector_store_with_new_file(file_path: str, vector_store):
 # Generar respuesta considerando el historial pasado como parámetro
 def send_response(query: str, conversation_history: List[Dict[str, str]] = None):
     """
-    Generar respuesta usando el historial de conversación pasado como parámetro
+    Generate response using conversation history
     
     Args:
-        query: La pregunta actual del usuario
-        conversation_history: Lista de mensajes previos en formato:
-            [{"role": "human", "content": "pregunta"}, {"role": "ai", "content": "respuesta"}, ...]
+        query: User's question
+        conversation_history: List of previous messages in the format:
+            [{"role": "human", "content": "question"}, {"role": "ai", "content": "answer"}, ...]
     """
-    
-    # Crear o cargar el vector store
+
+    # Create or load the vector store
     vector_store = create_index(force_recreate=False)
     
     # Create the Gemini LLM instance
@@ -88,13 +82,13 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
         max_output_tokens=config_model.MAX_OUT_TOKENS
     )
 
-    # Crear memoria temporal solo para la sesión en curso
+    # Create temporary memory only for the current session
     memory = ConversationBufferMemory(
         memory_key="chat_history", 
         return_messages=True
     )
-    
-    # Si hay historial previo, agregarlo a la memoria temporal
+
+    # If there is previous history, add it to the temporary memory
     if conversation_history:
         for message in conversation_history:
             if message["role"] == "human":
@@ -178,11 +172,11 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
     agent_executor = AgentExecutor(
         agent=agent,
         tools=tools,
-        memory=memory,  # Memoria temporal para la sesión
+        memory=memory, 
         verbose=True,
         handle_parsing_errors=True
     )
 
-    # Ejecutar la consulta
+    # Execute the request
     result = agent_executor.invoke({"input": query})
     return result["output"]

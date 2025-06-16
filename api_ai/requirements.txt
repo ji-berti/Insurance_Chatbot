@@ -19,7 +19,3 @@ uvicorn
 # For environment management
 python-dotenv
 python-multipart
-
-
-# Por si se usa Gemma2
-langchain-huggingface

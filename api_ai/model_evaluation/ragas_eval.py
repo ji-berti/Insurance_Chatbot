@@ -25,32 +25,31 @@ from ragas.llms import LangchainLLMWrapper
 from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas.run_config import RunConfig
 
-# Importar configuraciones del proyecto
+# Project imports
 import sys
 sys.path.append('..')
 from generative_resp import config_model, config_vectordb
 
-# Suprimir warnings
+# Suppress warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 def configure_ragas_dependencies():
     """
-    Configura dependencias de RAGAS con parámetros conservadores.
+    Configure RAGAS dependencies with conservative parameters.
     """
     print("Configurando dependencias de RAGAS (LLM y Embeddings)...")
     try:
-        # 1. Configurar el LLM de Gemini para máxima consistencia
+        # 1.Configure Google Gemini LLM for maximum consistency
         gemini_llm = ChatGoogleGenerativeAI(
             model=config_model.GEMINI_MODEL,
             google_api_key=config_model.GEMINI_API_KEY,
-            temperature=0.0,  # Sin creatividad para respuestas predecibles
-            # FIX: El parámetro correcto es 'timeout', no 'request_timeout'
+            temperature=0.0,  # Without randomness
             timeout=300,
         )
         ragas_llm = LangchainLLMWrapper(gemini_llm)
         
-        # 2. Configurar los Embeddings de HuggingFace
+        # 2. Configure HuggingFace embeddings
         hf_embeddings = HuggingFaceEmbeddings(
             model_name=config_vectordb.EMBEDDING_MODEL,
             model_kwargs={'device': 'cpu'},
@@ -67,7 +66,7 @@ def configure_ragas_dependencies():
 
 def create_rag_chain(docs, temperature, top_k, chunk_size):
     """
-    Crea una cadena RAG con los hiperparámetros especificados.
+    Create a RAG chain with the specified hyperparameters.
     """
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=chunk_size, 
@@ -111,7 +110,7 @@ Respuesta útil:"""
 
 def get_manual_hyperparameter_configs():
     """
-    Devuelve una lista de 4 combinaciones de hiperparámetros definidas manualmente.
+    Returns a list of 4 manually defined hyperparameter combinations.
     """
     return [
         {'name': 'Creative & Balanced', 'chunk_size': 1000, 'top_k': 4, 'temperature': 0.3},
@@ -122,7 +121,7 @@ def get_manual_hyperparameter_configs():
 
 def create_evaluation_dataset():
     """
-    Crea un DataFrame de pandas con 4 preguntas y respuestas para la evaluación.
+    Create a pandas DataFrame with 4 questions and answers for evaluation.
     """
     data = {
         'question': [
@@ -142,7 +141,7 @@ def create_evaluation_dataset():
 
 def run_evaluation(original_docs):
     """
-    Función principal que ejecuta la evaluación con la lógica más robusta posible.
+    Main function that runs the evaluation with the most robust logic possible.
     """
     ragas_llm, ragas_embeddings = configure_ragas_dependencies()
     if not ragas_llm or not ragas_embeddings:
@@ -199,19 +198,19 @@ def run_evaluation(original_docs):
                     raise_exceptions=True,
                     run_config=ragas_run_config
                 )
-                
-                # --- LÓGICA DE PROCESAMIENTO ULTRA-ROBUSTA ---
+
+                # --- PROCESSING LOGIC ---
                 if hasattr(result, 'scores'):
                     scores_obj = result.scores
-                    # CASO CLAVE: Si RAGAS devuelve una lista de scores
+                    # KEY CASE: If RAGAS returns a list of scores
                     if isinstance(scores_obj, list) and len(scores_obj) > 0:
                         scores_dict = scores_obj[0]
-                        print("    ✅ Éxito (resultado procesado desde lista).")
-                    # CASO NORMAL: Si devuelve un objeto con .to_dict()
+                        print("    ✅ Success (result processed from list).")
+                    # NORMAL CASE: If it returns an object with .to_dict()
                     elif hasattr(scores_obj, 'to_dict'):
                         scores_dict = scores_obj.to_dict()
                         print("    ✅ Éxito (resultado procesado desde objeto).")
-                    # CASO ALTERNATIVO: Si es directamente un diccionario
+                    # ALTERNATIVE CASE: If it returns a dict directly
                     elif isinstance(scores_obj, dict):
                         scores_dict = scores_obj
                         print("    ✅ Éxito (resultado procesado desde dict).")
@@ -224,13 +223,13 @@ def run_evaluation(original_docs):
                 print(f"    ⚠️ Fallo por excepción: {str(e)[:100]}...")
             
             finally:
-                # Asegurarse de que el diccionario final tenga todas las métricas
+                # Final dictionary with all metrics
                 final_scores = {name: scores_dict.get(name, np.nan) for name in metric_names}
                 combination_scores.append(final_scores)
                 print(f"    ⏳ Pausa de 180 segundos para proteger la cuota...")
-                time.sleep(180) # Pausa muy larga para máxima seguridad
+                time.sleep(180) # Long pause to protect quota
 
-        # Calcular promedio para la configuración
+        # Calculate average for the configuration
         avg_scores_df = pd.DataFrame(combination_scores).mean().to_dict()
         avg_scores_df['combination_name'] = config['name']
         all_results.append(avg_scores_df)
@@ -249,7 +248,7 @@ def run_evaluation(original_docs):
             print("-"*50)
             time.sleep(300)
 
-    # Crear el DataFrame final
+    # Create final DataFrame with all results
     final_results_df = pd.DataFrame(all_results)
     final_metric_cols = [name for name in metric_names if name in final_results_df.columns]
     final_results_df = final_results_df[['combination_name'] + final_metric_cols]

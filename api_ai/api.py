@@ -12,9 +12,9 @@ app = FastAPI()
 TEMP_DIR = "temp_uploads"
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-# Modelos Pydantic para las requests
+# Pydantic models for request validation
 class Message(BaseModel):
-    role: str  # "human" o "ai"
+    role: str  # "human" or "ai"
     content: str
 
 class QuestionRequest(BaseModel):
@@ -24,20 +24,20 @@ class QuestionRequest(BaseModel):
 @app.post("/ask")
 def ask_question(request: QuestionRequest):
     """
-    Endpoint para hacer preguntas con historial de conversación opcional
-    
-    El historial se pasa en cada request desde el frontend y no se almacena en el servidor
+    Endpoint for asking questions with optional conversation history
+
+    The history is passed in each request from the frontend and is not stored on the server
     """
     try:
-        # Convertir el historial de Pydantic models a diccionarios simples
+        # Convert Pydantic model history to simple dictionaries
         history_dict = []
         if request.conversation_history:
             history_dict = [
                 {"role": msg.role, "content": msg.content} 
                 for msg in request.conversation_history
             ]
-        
-        # Generar respuesta considerando el historial
+
+        # Generate response considering the history
         response = send_response(request.question, history_dict)
         
         return {
@@ -51,7 +51,7 @@ def ask_question(request: QuestionRequest):
 @app.post("/upload")
 def upload_pdf(file: UploadFile = File(...)):
     """
-    Endpoint para subir archivos PDF (sin cambios en la funcionalidad)
+    Endpoint for uploading PDF files
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only allowed PDF files.")
@@ -78,7 +78,7 @@ def upload_pdf(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error file processing: {str(e)}")
 
-# Endpoint de salud/estado
+# Health check endpoint
 @app.get("/health")
 def health_check():
     return {
@@ -86,11 +86,11 @@ def health_check():
         "message": "API is running normally"
     }
 
-# Endpoint para limpiar el índice vectorial (útil para desarrollo)
+# Endpoint to reset the vector index (useful in development)
 @app.post("/reset-index")
 def reset_vector_index():
     """
-    Endpoint para recrear el índice vectorial desde cero
+    Endpoint to recreate the vector index from scratch
     """
     try:
         create_index(force_recreate=True)
