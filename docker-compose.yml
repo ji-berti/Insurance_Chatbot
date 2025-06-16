@@ -1,7 +1,6 @@
 services:
   api:
     build: ./api_ai
-    entrypoint: ["executable", "arg"]
     networks:
       - ins_chat_network
 

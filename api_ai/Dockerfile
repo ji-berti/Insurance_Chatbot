@@ -27,6 +27,6 @@ RUN pip install --upgrade pip && \
 
 COPY . .
 
-EXPOSE 3000
+# EXPOSE 3000 # Only on development, not in production
 
 CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "3000"]
