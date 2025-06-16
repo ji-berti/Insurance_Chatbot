@@ -1,0 +1,5 @@
+combination_name,faithfulness,answer_relevancy,context_precision,context_recall
+Creative & Balanced,0.95,0.6379189482540356,0.3749999999625,0.5
+Wide Context Sweep,1.0,0.47837730071595863,0.3749999999625,0.5
+Balanced Natural,1.0,0.6301559136755784,0.3749999999625,0.5
+Dense Precision,1.0,0.6481385677780607,0.3749999999625,0.5

@@ -114,10 +114,10 @@ def get_manual_hyperparameter_configs():
     Devuelve una lista de 4 combinaciones de hiperparámetros definidas manualmente.
     """
     return [
-        {'name': 'Baseline', 'chunk_size': 1000, 'top_k': 4, 'temperature': 0.1},
-        {'name': 'More Context, Focused', 'chunk_size': 1500, 'top_k': 3, 'temperature': 0.1},
-        {'name': 'Smaller Chunks, More Options', 'chunk_size': 500, 'top_k': 5, 'temperature': 0.1},
         {'name': 'Creative & Balanced', 'chunk_size': 1000, 'top_k': 4, 'temperature': 0.3},
+        {'name': 'Wide Context Sweep', 'chunk_size': 1200, 'top_k': 6, 'temperature': 0.1},
+        {'name': 'Balanced Natural', 'chunk_size': 1000, 'top_k': 3, 'temperature': 0.2},
+        {'name': 'Dense Precision', 'chunk_size': 1800, 'top_k': 2, 'temperature': 0.15}
     ]
 
 def create_evaluation_dataset():
