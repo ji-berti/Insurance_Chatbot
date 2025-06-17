@@ -3,8 +3,7 @@ import requests
 
 st.set_page_config(page_title="Asistente de Seguros", layout="centered")
 
-# CHANGE THE URL FOR PRODUCTION
-API_BASE_URL = "http://thirsty_ride:3000"
+API_BASE_URL = "http://api:3000"
 
 # Check backend API status
 def check_api_status():
