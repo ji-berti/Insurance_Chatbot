@@ -14,54 +14,41 @@ from langchain.tools import DuckDuckGoSearchRun
 from langchain.prompts import PromptTemplate
 from langchain import hub
 
-# Create or load the vector store index
-def create_index(force_recreate=False):
-    # Recreate the vector store if specified
+# LOAD BASE VECTOR STORE FROM DISK
+def load_base_vector_store(force_recreate=False):
+    """
+    Load or create the base vector store from disk.
+    """
     if force_recreate and os.path.exists(config.VECTOR_STORE_PATH):
         shutil.rmtree(config.VECTOR_STORE_PATH)
 
-    # If the vector store does not exist, create it
     if not os.path.exists(config.VECTOR_STORE_PATH):
-        print("Creating vector store index...")
-        chunks = load_split_pdfs( # Load the chunks
-            pdf_dir=config.PDF_DIR_POLIZAS,
-            chunk_size=config.CHUNK_SIZE,
-            chunk_overlap=config.CHUNK_OVERLAP
-        )
-        embeddings = get_embeddings(model_name=config.EMBEDDING_MODEL) # Get the embeddings
-        vector_store = create_vector_store( # Create the vector store
-            chunks=chunks,
-            embeddings=embeddings,
-            vector_store_path=config.VECTOR_STORE_PATH
-        )
+        print("Creating base vector store on disk...")
+        chunks = load_split_pdfs(...)
+        embeddings = get_embeddings(...)
+        vector_store = create_vector_store(chunks, embeddings, config.VECTOR_STORE_PATH)
         return vector_store
-    
-    # If the vector store already exists, load it
     else:
-        print("Loading existing vector store index...")
+        print("Loading existing base vector store from disk...")
         embeddings = get_embeddings(model_name=config.EMBEDDING_MODEL)
-        return load_vector_store(vector_store_path=config.VECTOR_STORE_PATH, embeddings=embeddings)
+        return load_vector_store(config.VECTOR_STORE_PATH, embeddings)
 
-# Add a new PDF file to the existing vector store
-def update_vector_store_with_new_file(file_path: str, vector_store):
-    if not file_path.endswith(".pdf") or not os.path.exists(file_path):
-        raise ValueError(f"{file_path} is not a valid PDF file.")
-
-    print(f"Processing new file to add to the vector store: {file_path}")
-    chunks = load_single_pdf( # Load the chunks from the new PDF file
-        pdf_path=file_path,
-        chunk_size=config.CHUNK_SIZE,
-        chunk_overlap=config.CHUNK_OVERLAP
-    )
+# UPDATE IN MEMORY VECTOR STORE
+def update_in_memory_vector_store(file_path: str, vector_store):
+    """
+    Process a new PDF file and update the in-memory vector store.
+    """
+    print(f"Updating in-memory vector store with file: {file_path}")
+    chunks = load_single_pdf(file_path, config.CHUNK_SIZE, config.CHUNK_OVERLAP)
 
     if chunks:
-        vector_store.add_documents(chunks)
-        print("File added successfully to the vector store.")
+        vector_store.add_documents(chunks)  # Updates in memory DB
+        print("In-memory vector store updated successfully.")
     else:
-        print("No documents were added to the vector store.")
+        print("No documents were added.")
 
-# Generar respuesta considerando el historial pasado como parámetro
-def send_response(query: str, conversation_history: List[Dict[str, str]] = None):
+# Generate response considering past history as a parameter
+def send_response(query: str, vector_store, conversation_history: List[Dict[str, str]] = None):
     """
     Generate response using conversation history
     
@@ -70,10 +57,6 @@ def send_response(query: str, conversation_history: List[Dict[str, str]] = None)
         conversation_history: List of previous messages in the format:
             [{"role": "human", "content": "question"}, {"role": "ai", "content": "answer"}, ...]
     """
-
-    # Create or load the vector store
-    vector_store = create_index(force_recreate=False)
-    
     # Create the Gemini LLM instance
     llm = ChatGoogleGenerativeAI(
         model=config_model.GEMINI_MODEL,
