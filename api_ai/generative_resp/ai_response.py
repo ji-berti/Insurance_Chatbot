@@ -80,14 +80,37 @@ def send_response(query: str, vector_store, conversation_history: List[Dict[str,
                 memory.chat_memory.add_ai_message(message["content"])
 
     # Retriever tool to search on the vector store
+    def retrieve_docs_with_metadata(query: str) -> str:
+        """
+        Retrieves relevant document chunks and formats them with their metadata.
+        """
+        docs = vector_store.as_retriever(search_kwargs={'k': config_model.TOP_K}).get_relevant_documents(query)
+        
+        formatted_results = []
+        for doc in docs:
+            # Extract document metadata
+            source = doc.metadata.get('source', 'Desconocido')
+            page = doc.metadata.get('page', 'N/A')
+            if isinstance(page, int):
+                page += 1
+
+            # Format the result for better understanding of the LLM
+            result_str = (
+                f"Contenido: {doc.page_content}\n"
+                f"Fuente: {os.path.basename(source)}\n"
+                f"Página: {page}\n"
+                "----------------"
+            )
+            formatted_results.append(result_str)
+        
+        return "\n".join(formatted_results)
+
     retriever_tool = Tool(
         name="VectorDBTool",
-        func=lambda q: "\n".join(
-            [doc.page_content for doc in vector_store.as_retriever(search_kwargs={'k': config_model.TOP_K}).get_relevant_documents(q)]
-        ),
+        func=retrieve_docs_with_metadata, 
         description=(
             "Usa esta herramienta para buscar información en la base de datos de pólizas de seguros. "
-            "Use this tool to search the insurance policy database."
+            "La herramienta devolverá el contenido del documento, el nombre del archivo (Fuente) y el número de página."
         )
     )
 
@@ -127,12 +150,21 @@ def send_response(query: str, vector_store, conversation_history: List[Dict[str,
         Action Input: The input to the action
         Observation: The result of the action
 
-        (This Thought/Action/Action Input/Observation can repeat N times if you need to use multiple tools or multiple steps)
+        (This Thought/Action/Action Input/Observation can repeat N times)
 
-        When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
+        When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format below.
+        You must add a "Fuentes:" section at the end of your response.
+        - If you used VectorDBTool, you MUST cite the 'Fuente' and 'Página' from the observation.
+        - If you used WebSearch, you MUST state that you used WebSearch.
+        - If you did not use any tool, say so.
 
         Thought: Do I need to use a tool? No
-        Final Answer: [Your final response to the human here. This should be a complete answer to the original question, considering the conversation history.]
+        Final Answer: [Tu respuesta final y completa aquí.]
+
+        > **Fuentes:**
+        - **Herramienta**: [Nombre de la herramienta usada: VectorDBTool, WebSearch o Ninguna]
+        - **Documento**: [Nombre del archivo (ej. poliza_vida.pdf), si usaste VectorDBTool]
+        - **Página**: [Número de página, si usaste VectorDBTool]
 
         Begin!
 

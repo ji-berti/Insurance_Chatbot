@@ -42,15 +42,20 @@ class QuestionRequest(BaseModel):
 @app.post("/ask")
 def ask_question(request: QuestionRequest):
     """
-    Endpoint for asking questions with optional conversation history
-
-    The history is passed in each request from the frontend and is not stored on the server
+    Endpoint for asking questions with optional conversation history.
+    This endpoint now ensures that every session has its own isolated vector store.
     """
     try:
+        session_id = request.session_id
+        # First time session, create his own in-memory vector DB
+        if session_id not in SESSION_VECTOR_STORES:
+            print(f"Creating new in-memory vector store for session: {session_id}")
+            # Make a copy of the base vector DB
+            cloned_store = pickle.loads(pickle.dumps(BASE_VECTOR_STORE))
+            SESSION_VECTOR_STORES[session_id] = cloned_store
 
-        # Obtain the vector store for the current session
-        # If the session_id is not found, use the base vector store
-        vector_store = SESSION_VECTOR_STORES.get(request.session_id, BASE_VECTOR_STORE)
+        vector_store = SESSION_VECTOR_STORES[session_id]
+        
 
         # Convert Pydantic model history to simple dictionaries
         history_dict = [msg.dict() for msg in request.conversation_history] if request.conversation_history else []
@@ -64,6 +69,8 @@ def ask_question(request: QuestionRequest):
         }
         
     except Exception as e:
+        if session_id in SESSION_VECTOR_STORES:
+            del SESSION_VECTOR_STORES[session_id]
         raise HTTPException(status_code=500, detail=str(e))
 
 # Upload a user PDF file to update the vector store in memory
