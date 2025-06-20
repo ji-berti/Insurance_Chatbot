@@ -10,9 +10,11 @@ from generative_resp.services import get_embeddings, create_vector_store, load_v
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import Tool, AgentExecutor, create_react_agent
 from langchain.memory import ConversationBufferMemory
-from langchain.tools import DuckDuckGoSearchRun
 from langchain.prompts import PromptTemplate
 from langchain import hub
+
+from langchain_community.tools import DuckDuckGoSearchResults
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
 
 # LOAD BASE VECTOR STORE FROM DISK
 def load_base_vector_store(force_recreate=False):
@@ -24,8 +26,8 @@ def load_base_vector_store(force_recreate=False):
 
     if not os.path.exists(config.VECTOR_STORE_PATH):
         print("Creating base vector store on disk...")
-        chunks = load_split_pdfs(...)
-        embeddings = get_embeddings(...)
+        chunks = load_split_pdfs(config.PDF_DIR_POLIZAS, config.CHUNK_SIZE, config.CHUNK_OVERLAP)
+        embeddings = get_embeddings(config.EMBEDDING_MODEL)
         vector_store = create_vector_store(chunks, embeddings, config.VECTOR_STORE_PATH)
         return vector_store
     else:
@@ -109,18 +111,42 @@ def send_response(query: str, vector_store, conversation_history: List[Dict[str,
         name="VectorDBTool",
         func=retrieve_docs_with_metadata, 
         description=(
-            "Usa esta herramienta para buscar información en la base de datos de pólizas de seguros. "
-            "La herramienta devolverá el contenido del documento, el nombre del archivo (Fuente) y el número de página."
+            "IMPRESCINDIBLE para buscar información específica en documentos de pólizas de seguros cargados por el usuario. "
+            "DEBES usar esta herramienta PRIMERO para cualquier pregunta que no sea un saludo."
         )
     )
 
     # Search tool to search on the web if the vector store does not contain the answer
+    # Function to retrive the source of the information
+    def web_search_with_sources(query: str, num_results: int = 3) -> str:
+        """
+        Makes a web search ans returns the results formated including title, snippet and URL.
+        """
+        wrapper = DuckDuckGoSearchAPIWrapper()
+        results = wrapper.results(query, max_results=num_results)
+        
+        if not results:
+            return "No se encontraron resultados en la web."
+            
+        formatted_results = []
+        for i, res in enumerate(results, 1):
+            result_str = (
+                f"Resultado {i}:\n"
+                f"Título: {res['title']}\n"
+                f"Resumen: {res['snippet']}\n"
+                f"URL: {res['link']}\n"
+                "----------------"
+            )
+            formatted_results.append(result_str)
+        
+        return "\n".join(formatted_results)
+
     search_tool = Tool(
         name="WebSearch",
-        func=DuckDuckGoSearchRun().run,
+        func=web_search_with_sources,
         description=(
-            "Usa esta herramienta para buscar información en Internet si la base de datos no contiene la respuesta. "
-            "Use this tool to search the internet if the database lacks the answer."
+            "Útil para responder preguntas de conocimiento general. "
+            "Usa esta herramienta SOLO si VectorDBTool no encontró una respuesta adecuada."
         )
     )
 
@@ -130,48 +156,44 @@ def send_response(query: str, vector_store, conversation_history: List[Dict[str,
     prompt = PromptTemplate(
         template=
         """
-        Assistant is a helpful and conversational AI designed to answer questions about insurance policies.
-        It has access to a database of insurance policies and can also search the web for general information.
-        Strive to be polite and informative. If you don't know the answer from the provided tools, say so.
-        
-        You should consider the conversation history to provide contextual and coherent responses.
-        If the user refers to something mentioned earlier in the conversation, use that context.
-        Pay attention to pronouns like "it", "that", "this" that might refer to previous topics.
+        Eres un asistente de IA conversacional y servicial. Tu objetivo es ser educado, informativo y eficiente.
+        Considera siempre el historial de la conversación para dar respuestas contextuales.
 
-        TOOLS:
-        ------
-        You have access to the following tools:
-        {tools}
+        **PLAN DE ACCIÓN OBLIGATORIO:**
+        1.  **Analiza la pregunta del Humano.**
+        2.  **Prioriza `VectorDBTool`:** Para CUALQUIER pregunta que no sea un saludo, DEBES usar `VectorDBTool` primero.
+        3.  **Analiza en Profundidad:** Revisa **TODOS** los fragmentos de la `Observation` de `VectorDBTool`. La respuesta completa puede estar distribuida en varios de ellos. Sintetiza la información de todos los fragmentos relevantes para construir la respuesta más completa posible.
+        4.  **Usa `WebSearch` como plan B:** Si después de analizar todos los fragmentos de la base de datos, la respuesta sigue siendo insuficiente, y SOLO EN ESE CASO, puedes usar `WebSearch`.
+        5.  **Formula la Respuesta Final:** Construye tu respuesta final basándote en tu análisis.
 
-        To use a tool, you MUST use the following format:
+        **FORMATO OBLIGATORIO:**
 
-        Thought: Do I need to use a tool? Yes
-        Action: The action to take, should be one of [{tool_names}]
-        Action Input: The input to the action
-        Observation: The result of the action
+        Para usar una herramienta, usa este formato:
+        ```
+        Thought: [Tu razonamiento sobre qué herramienta usar y por qué, siguiendo el PLAN DE ACCIÓN.]
+        Action: [El nombre de la herramienta, una de [{tool_names}]]
+        Action Input: [El texto de entrada para la herramienta]
+        Observation: [El resultado que la herramienta te devuelve]
+        ```
 
-        (This Thought/Action/Action Input/Observation can repeat N times)
-
-        When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format below.
-        You must add a "Fuentes:" section at the end of your response.
-        - If you used VectorDBTool, you MUST cite the 'Fuente' and 'Página' from the observation.
-        - If you used WebSearch, you MUST state that you used WebSearch.
-        - If you did not use any tool, say so.
-
-        Thought: Do I need to use a tool? No
-        Final Answer: [Tu respuesta final y completa aquí.]
-
+        Cuando tengas la respuesta final, o si es un saludo, DEBES usar el siguiente formato. **NO intentes usar herramientas de nuevo.**
+        ```
+        Thought: [Tu razonamiento final para concluir la respuesta.]
+        Final Answer: [Tu respuesta final, completa y bien formada para el usuario.]
         > **Fuentes:**
-        - **Herramienta**: [Nombre de la herramienta usada: VectorDBTool, WebSearch o Ninguna]
-        - **Documento**: [Nombre del archivo (ej. poliza_vida.pdf), si usaste VectorDBTool]
-        - **Página**: [Número de página, si usaste VectorDBTool]
+        > - **Herramienta**: [VectorDBTool, WebSearch o Ninguna]
+        > - **Documento**: [Nombre del archivo, si usaste VectorDBTool]
+        > - **Página**: [Número de página, si usaste VectorDBTool]
+        > - **Enlaces Web**:
+        >   - [Si usaste WebSearch, lista cada enlace en una nueva línea con formato `- [Título](URL)`]
+        ```
 
-        Begin!
+        **COMIENZA AHORA**
 
-        Previous conversation history:
+        Historial de la conversación anterior:
         {chat_history}
 
-        New input from Human: {input}
+        Nueva entrada del Humano: {input}
         Thought:{agent_scratchpad}
         """,
         input_variables=["input", "agent_scratchpad", "chat_history"],
@@ -189,7 +211,9 @@ def send_response(query: str, vector_store, conversation_history: List[Dict[str,
         tools=tools,
         memory=memory, 
         verbose=True,
-        handle_parsing_errors=True
+        handle_parsing_errors="Por favor, reformula tu respuesta en el formato correcto.",
+        # max_iterations=8, # Avoid too many iterations
+        # early_stopping_method="generate"
     )
 
     # Execute the request

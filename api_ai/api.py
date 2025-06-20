@@ -2,7 +2,6 @@ import pickle
 from fastapi import FastAPI, HTTPException, UploadFile, File, Body
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-# from generative_resp.ai_response import send_response, create_index, update_vector_store_with_new_file
 from generative_resp.ai_response import (
     send_response, 
     load_base_vector_store, 
@@ -123,7 +122,7 @@ def reset_vector_index():
     Endpoint to recreate the vector index from scratch
     """
     try:
-        create_index(force_recreate=True)
+        load_base_vector_store(force_recreate=True)
         return {"message": "Vector index reset successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

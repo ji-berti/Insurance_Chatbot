@@ -4,7 +4,7 @@ import uuid
 
 st.set_page_config(page_title="Insurance Chatbot", layout="centered", page_icon="🤖")
 
-API_BASE_URL = "http://api:3000" 
+API_BASE_URL = "http://api:3000"
 
 # --- Session management ---
 # Initialize session state if it doesn't exist
