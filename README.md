@@ -74,9 +74,7 @@ The project is built on a decoupled, two-service architecture (frontend and back
 6.  The agent synthesizes the information and formulates a final answer, including the source.
 7.  The FastAPI backend sends the final answer back to the Streamlit UI, which displays it to the user.
 
-<p align="center">
-  <img src="./assets/project-architecture.png" alt="Architecture Diagram" width="60%">
-</p>
+![Architecture Diagram](./assets/project-architecture.png)
 
 ---
 
