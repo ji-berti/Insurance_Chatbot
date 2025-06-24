@@ -9,6 +9,8 @@
 
 An intelligent, multi-tool agent designed to revolutionize the insurance industry by optimizing policy creation, risk assessment, and information retrieval.
 
+**Github repository**: [Insurance Policy AI Assistant](https://github.com/ji-berti/Insurance_Chatbot)
+
 ---
 
 ## Table of Contents
